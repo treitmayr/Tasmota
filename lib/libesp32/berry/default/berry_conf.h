@@ -66,7 +66,11 @@
  * 1: keep the source file name
  * Default: 1
  **/
+#ifdef USE_BERRY_DEBUG
+#define BE_DEBUG_SOURCE_FILE            1
+#else
 #define BE_DEBUG_SOURCE_FILE            0
+#endif
 
 /* Macro: BE_DEBUG_RUNTIME_INFO
  * Set runtime error debugging information.
@@ -75,7 +79,11 @@
  * 2: the information use uint16_t type (save space).
  * Default: 1
  **/
+#ifdef USE_BERRY_DEBUG
+#define BE_DEBUG_RUNTIME_INFO           1
+#else
 #define BE_DEBUG_RUNTIME_INFO           0
+#endif
 
 /* Macro: BE_DEBUG_VAR_INFO
  * Set variable debugging tracking information.
@@ -83,7 +91,11 @@
  * 1: enable variable debugging tracking information at runtime.
  * Default: 1
  **/
+#ifdef USE_BERRY_DEBUG
+#define BE_DEBUG_VAR_INFO               1
+#else
 #define BE_DEBUG_VAR_INFO               0
+#endif
 
 /* Macro: BE_USE_PERF_COUNTERS
  * Use the obshook function to report low-level actions.

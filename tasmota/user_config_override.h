@@ -89,14 +89,17 @@ Examples :
 
 #ifdef FIRMWARE_LVGL_THERMOSTAT
 
+#include "sdkconfig.h"
+#if !CONFIG_SPIRAM_MODE_OCT
+#error "SPIRAM not in OCT mode"abort
+#endif
+
+//#define UDSP_DEBUG
+
 #ifdef THERMOSTAT_SENSOR_NAME
   #undef THERMOSTAT_SENSOR_NAME
 #endif
 #define THERMOSTAT_SENSOR_NAME  "BME280"
-
-//#define DISABLE_PSRAMCHECK
-//#undef BOARD_HAS_PSRAM
-#undef DISABLE_PSRAMCHECK
 
 #undef CONFIG_BT_ENABLED
 
@@ -210,7 +213,7 @@ Examples :
 #define USE_BERRY                                // Enable Berry scripting language
   #undef USE_BERRY_PYTHON_COMPAT                // Enable by default `import python_compat`
   #define USE_BERRY_TIMEOUT             4000     // Timeout in ms, will raise an exception if running time exceeds this timeout
-  #undef USE_BERRY_PSRAM                        // Allocate Berry memory in PSRAM if PSRAM is connected - this might be slightly slower but leaves main memory intact
+  #define USE_BERRY_PSRAM                        // Allocate Berry memory in PSRAM if PSRAM is connected - this might be slightly slower but leaves main memory intact
   #define USE_BERRY_IRAM                         // Allocate some data structures in IRAM (which is ususally unused) when possible and if no PSRAM is available
   #define USE_BERRY_FAST_LOOP_SLEEP_MS  5        // Minimum time in milliseconds to before calling again `tasmota.fast_loop()`, a smaller value will consume more CPU (min 1ms)
   // #define USE_BERRY_DEBUG                        // Compile Berry bytecode with line number information, makes exceptions easier to debug. Adds +8% of memory consumption for compiled code
@@ -238,6 +241,7 @@ Examples :
   #undef USE_BERRY_CRYPTO_SHA256                // enable SHA256 hash function
   #undef USE_BERRY_CRYPTO_HMAC_SHA256           // enable HMAC SHA256 hash function
 #undef USE_ETHERNET
+#undef CONFIG_ETH_ENABLED
 
 #define USE_TLS
 #define USE_WEBSERVER
@@ -287,6 +291,8 @@ Examples :
 #define USE_I2C                                  // I2C using library wire (+10k code, 0k2 mem, 124 iram)
 
 #define USE_BMP                                // [I2cDriver10] Enable BMP085/BMP180/BMP280/BME280 sensors (I2C addresses 0x76 and 0x77) (+4k4 code)
+#undef USE_SHT                                 // [I2cDriver8] Enable SHT1X sensor (+1k4 code)
+#define USE_SHT3X                              // [I2cDriver15] Enable SHT3x (I2C address 0x44 or 0x45) or SHTC3 (I2C address 0x70) sensor (+0k7 code)
 
 #undef USE_NRF24                              // Disable SPI support for NRF24L01(+) (+2k6 code)
 #undef USE_MIBLE                              // BLE-bridge for some Mijia-BLE-sensors (+4k7 code)
@@ -309,7 +315,7 @@ Examples :
 #undef USE_SHUTTER
 #undef USE_DEVICE_GROUPS
 
-#define CORE32SOLO1 0
+//#define CORE32SOLO1 0
 
 #endif
 

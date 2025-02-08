@@ -1044,6 +1044,41 @@ exit:
   return;
 }
 
+static void print_esp_lcd_rgb_panel_config(esp_lcd_rgb_panel_config_t *var)
+{
+    printf("clk_src = %d\n", var->clk_src);
+    printf("timings.pclk_hz = %ld\n", var->timings.pclk_hz);
+    printf("timings.h_res = %ld\n", var->timings.h_res);
+    printf("timings.v_res = %ld\n", var->timings.v_res);
+    printf("timings.hsync_pulse_width = %ld\n", var->timings.hsync_pulse_width);
+    printf("timings.hsync_back_porch = %ld\n", var->timings.hsync_back_porch);
+    printf("timings.hsync_front_porch = %ld\n", var->timings.hsync_front_porch);
+    printf("timings.vsync_pulse_width = %ld\n", var->timings.vsync_pulse_width);
+    printf("timings.vsync_back_porch = %ld\n", var->timings.vsync_back_porch);
+    printf("timings.vsync_front_porch = %ld\n", var->timings.vsync_front_porch);
+    printf("timings.flags.hsync_idle_low = %d\n", var->timings.flags.hsync_idle_low);
+    printf("timings.flags.vsync_idle_low = %d\n", var->timings.flags.vsync_idle_low);
+    printf("timings.flags.de_idle_high = %d\n", var->timings.flags.de_idle_high);
+    printf("timings.flags.pclk_active_neg = %d\n", var->timings.flags.pclk_active_neg);
+    printf("timings.flags.pclk_idle_high = %d\n", var->timings.flags.pclk_idle_high);
+    printf("data_width = %d\n", var->data_width);
+    printf("bits_per_pixel = %d\n", var->bits_per_pixel);
+    printf("num_fbs = %d\n", var->num_fbs);
+    printf("bounce_buffer_size_px = %d\n", var->bounce_buffer_size_px);
+    printf("dma_burst_size = %d\n", var->dma_burst_size);
+    printf("hsync_gpio_num = %d\n", var->hsync_gpio_num);
+    printf("vsync_gpio_num = %d\n", var->vsync_gpio_num);
+    printf("de_gpio_num = %d\n", var->de_gpio_num);
+    printf("pclk_gpio_num = %d\n", var->pclk_gpio_num);
+    printf("disp_gpio_num = %d\n", var->disp_gpio_num);
+    printf("flags.disp_active_low = %d\n", var->flags.disp_active_low);
+    printf("flags.refresh_on_demand = %d\n", var->flags.refresh_on_demand);
+    printf("flags.fb_in_psram = %d\n", var->flags.fb_in_psram);
+    printf("flags.double_fb = %d\n", var->flags.double_fb);
+    printf("flags.no_fb = %d\n", var->flags.no_fb);
+    printf("flags.bb_invalidate_cache = %d\n", var->flags.bb_invalidate_cache);
+}
+
 Renderer *uDisplay::Init(void) {
   extern bool UsePSRAM(void);
 
@@ -1196,7 +1231,7 @@ Renderer *uDisplay::Init(void) {
     }
     esp_lcd_rgb_panel_config_t *_panel_config = (esp_lcd_rgb_panel_config_t *)heap_caps_calloc(1, sizeof(esp_lcd_rgb_panel_config_t), MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
 
-    _panel_config->clk_src = LCD_CLK_SRC_PLL160M;
+    _panel_config->clk_src = LCD_CLK_SRC_DEFAULT;
 
     //if (spi_speed > 14) {
       //spi_speed = 14;
@@ -1226,10 +1261,10 @@ Renderer *uDisplay::Init(void) {
     _panel_config->pclk_gpio_num = pclk;
 
     for (uint32_t cnt = 0; cnt < 8; cnt ++) {
-      _panel_config->data_gpio_nums[cnt] = par_dbh[cnt];
+      _panel_config->data_gpio_nums[cnt] = par_dbl[cnt];
     }
     for (uint32_t cnt = 0; cnt < 8; cnt ++) {
-      _panel_config->data_gpio_nums[cnt + 8] = par_dbl[cnt];
+      _panel_config->data_gpio_nums[cnt + 8] = par_dbh[cnt];
     }
     _panel_config->disp_gpio_num = GPIO_NUM_NC;
 
@@ -1240,6 +1275,8 @@ Renderer *uDisplay::Init(void) {
     _panel_config->flags.relax_on_idle = 0;
 #endif // ESP_IDF_VERSION_MAJOR >= 5
     _panel_config->flags.fb_in_psram = 1;             // allocate frame buffer in PSRAM
+//    _panel_config->num_fbs = 1;
+    print_esp_lcd_rgb_panel_config(_panel_config);
 
     ESP_ERROR_CHECK(esp_lcd_new_rgb_panel(_panel_config, &_panel_handle));
     ESP_ERROR_CHECK(esp_lcd_panel_reset(_panel_handle));
@@ -2249,12 +2286,38 @@ void uDisplay::pushColors(uint16_t *data, uint16_t len, boolean not_swapped) {
   // not_swapped == true : called from displaytext, no byte swap, currently no dma here
   if (interface == _UDSP_RGB) {
 #ifdef USE_ESP32_S3
+    esp_lcd_panel_draw_bitmap(_panel_handle, seta_xp1, seta_yp1, seta_xp2, seta_yp2, (void *)data);
+#if 0
     // check that bytes count matches the size of area, and remove from inner loop
-    if ((seta_yp2 - seta_yp1) * (seta_xp2 - seta_xp2) > len) { return; }
+    uint32_t dx = seta_xp2 - seta_xp1;
+    uint32_t dy = seta_yp2 - seta_yp1;
+    if (dx * dy > len) { return; }
 
     uint16_t lenc = len;
 
-    if (cur_rot > 0) {
+    if (cur_rot == 3) {         // 270° rotation: addr = (w-x)*h + y-h
+      uint16_t *fb_y = rgb_fb + (int32_t)(_width - seta_xp1) * _height + seta_yp1 - _height;
+      while (dy--) {
+        uint16_t *fb_xy = fb_y;
+        dx = seta_xp2 - seta_xp1;
+        if (not_swapped) {            // we get the 'not_swapped' test outside of the inner loop
+          while (dx--) {
+            *fb_xy = *data++;
+            fb_xy -= _height;
+          }
+        } else {
+          while (dx--) {
+            uint16_t color = *data++;
+            *fb_xy = color << 8 | color >> 8;
+            fb_xy -= _height;
+          }
+        }
+        fb_y++;
+      }
+      uint16_t *flush_ptr = rgb_fb + (int32_t)(_width - seta_xp2) * _height + seta_yp1 - _height;
+      uint32_t flush_len = (int32_t)(seta_xp2 - seta_xp1 - 1) * _height + seta_yp2 - seta_yp1;
+      Cache_WriteBack_Addr((uint32_t)flush_ptr, flush_len * 2);
+    } else if (cur_rot > 0) {
       for (uint32_t y = seta_yp1; y < seta_yp2; y++) {
         seta_yp1++;
         for (uint32_t x = seta_xp1; x < seta_xp2; x++) {
@@ -2295,6 +2358,7 @@ void uDisplay::pushColors(uint16_t *data, uint16_t len, boolean not_swapped) {
         if (!lenc) break; 
       }
     }
+#endif
 #endif
     return;
   }
@@ -2547,7 +2611,28 @@ void uDisplay::setRotation(uint8_t rotation) {
       _height = gxs;
       break;
   }
-
+#ifdef USE_ESP32_S3
+  if (interface == _UDSP_RGB) {
+    switch (rotation) {
+      case 0:
+        esp_lcd_panel_mirror(_panel_handle, false, false);
+        esp_lcd_panel_swap_xy(_panel_handle, false);
+        break;
+      case 1:
+        esp_lcd_panel_mirror(_panel_handle, true, false);
+        esp_lcd_panel_swap_xy(_panel_handle, true);
+        break;
+      case 2:
+        esp_lcd_panel_mirror(_panel_handle, true, true);
+        esp_lcd_panel_swap_xy(_panel_handle, false);
+        break;
+      case 3:
+        esp_lcd_panel_mirror(_panel_handle, false, true);
+        esp_lcd_panel_swap_xy(_panel_handle, true);
+        break;
+    }
+  }
+#endif // USE_ESP32_S3
 }
 
 void udisp_bpwr(uint8_t on);

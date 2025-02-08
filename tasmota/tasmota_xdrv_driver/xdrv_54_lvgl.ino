@@ -90,7 +90,7 @@ void lv_flush_callback(lv_display_t *disp, const lv_area_t *area, uint8_t *color
 
   uint32_t pixels_len = width * height;
   uint32_t chrono_start = millis();
-  renderer->setAddrWindow(area->x1, area->y1, area->x1+width, area->y1+height);
+  renderer->setAddrWindow(area->x1, area->y1, area->x2+1, area->y2+1);
   renderer->pushColors((uint16_t *)color_p, pixels_len, true);
   renderer->setAddrWindow(0,0,0,0);
   renderer->Updateframe();
@@ -107,6 +107,12 @@ void lv_flush_callback(lv_display_t *disp, const lv_area_t *area, uint8_t *color
   // if there is a display callback, call it
   if (lvgl_glue->paint_cb != nullptr) {
     lvgl_glue->paint_cb(area->x1, area->y1, area->x2, area->y2, color_p);
+  }
+
+  if (lv_display_flush_is_last(disp)) {
+    /*Cache_WriteBack_Addr((uint32_t)rgb_fb, );
+
+    renderer->frameDone();*/
   }
 }
 
